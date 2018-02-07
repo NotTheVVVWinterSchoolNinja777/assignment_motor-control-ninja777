@@ -26,12 +26,13 @@ private:
     // FILL IN THE CODE
     double angle, period;
     bool triggered;
+    BufferedPort<Bottle> inPort, outPort;
 
 public:
 
     // set the correct angle to send to the server and the period of the thread
     // FILL IN THE CODE
-    ClientMod(): angle(0.0), period(0.0), triggered(false)
+    ClientMod(): angle(30.0), period(2.0), triggered(false)
     {}
     /****************************************************/
     bool configPorts()
@@ -40,6 +41,15 @@ public:
         // output port: /client/output
         // input port: /client/input
         // FILL IN THE CODE
+        if(!inPort.open("/client/input")){
+            yError()<<"Error opening the input port";
+            return false;
+        }
+        if(!outPort.open("/client/output")){
+            yError()<<"Error opening the output port";
+            return false;
+        }
+
         return true;
     }
 
@@ -74,7 +84,8 @@ public:
     bool close()
     {
         // close ports
-        // FILL IN THE CODE
+        inPort.close();
+        outPort.close();
         return true;
     }
 
@@ -82,7 +93,10 @@ public:
     bool interrupt()
     {
         // interrupt ports
-        // FILL IN THE CODE
+        inPort.interrupt();
+        outPort.interrupt();
+
+        close();
         return true;
     }
 
@@ -93,15 +107,24 @@ public:
         {
             // read from the input port the signal from the
             // trigger for starting to send data to the server
-            // FILL IN CODE
-            triggered = true;
+            Bottle *input;
+            input = inPort.read(true);
+            if(input){
+                triggered = true;
+            }
         }
 
         // once triggered prepare the bottle containing the
         // angle and send it to the server through the
         // output port
         // FILL IN CODE
+        if(triggered){
+            Bottle &response = outPort.prepare();
+            response.addDouble(angle);
+            outPort.write();
+        }
         return true;
+
     }
 
 };

@@ -22,7 +22,7 @@ private:
     // define one input port to receive the angle from the client
     // hint: think about which port you need, buffered? simple?
     // FILL IN THE CODE
-
+    BufferedPort<Bottle>             inPort;
     PolyDriver                       driver;
     IControlMode2                   *imod;
     IEncoders                       *ienc;
@@ -60,11 +60,14 @@ private:
             // check that "angle" is inside the joint
             // limits before moving
             // FILL IN CODE
+            angle = angle > max ? max : angle;
+            angle = angle < min ? min : angle;
 
             if (idle)
             {
                 // move the arm passing "angle"
                 // FIll IN CODE
+                ipos->positionMove(2, angle);
                 idle = false;
             }
         }
@@ -80,7 +83,10 @@ public:
     {
 
         // open the input port /server/input
-        // FILL IN THE CODE
+        if(!inPort.open("/server/input")){
+            yError()<<"Cannot open the input port";
+            return false;
+        }
         return true;
     }
 
@@ -92,6 +98,7 @@ public:
         option.put("device","remote_controlboard");
         option.put("remote","/icubSim/left_arm");
         option.put("local","/server");
+        int joint = 2;
 
         // open the driver
         if (!driver.open(option))
@@ -108,7 +115,7 @@ public:
         }
 
         // get joint's limits
-        ilim->getLimits(2, &min, &max);
+        ilim->getLimits(joint, &min, &max);
         // tell the device we aim to control
         // in position mode all the joints
         ienc->getAxes(&nAxes);
@@ -116,9 +123,10 @@ public:
         // tell the device we aim to control
         // in position mode all the joints
         // FILL IN THE CODE
+        imod->setControlMode(joint,VOCAB_CM_POSITION);
 
         // set ref speed for the target joint
-        // FILL IN THE CODE
+        ipos->setRefSpeed(joint, 40.0);
 
         return true;
     }
@@ -148,6 +156,7 @@ public:
     {
         // close the port and close the PolyDriver
         // FILL IN THE CODE
+        inPort.close();
         return true;
     }
 
@@ -156,7 +165,8 @@ public:
     {
 
         // interrupt the port
-        // FILL IN THE CODE
+        inPort.interrupt();
+        close();
         return true;
     }
 
@@ -165,12 +175,15 @@ public:
     {
         Bottle* bot = nullptr;
         // read from the input port passing "bot"
-        // FILL IN THE CODE
+
+        bot = inPort.read(false);
+
         if (bot)
         {
             // check that the movement requested has been done and
             // update the boolean variable "idle"
             // FILL IN THE CODE
+            idle = true;
             // try to move the arm
             moveArm(bot);
         }
